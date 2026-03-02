@@ -62,6 +62,7 @@ dev = {features = ["dev"], solve-group = "default"}
 [tool.pixi.feature.dev.dependencies]
 python = "3.11.*"
 ruff = "*"
+pip = "*"
 pytest = "*"
 coverage = "*"
 packaging = "<26.0"
@@ -76,7 +77,8 @@ lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
 format-check = "ruff format --check ."
-test = "pytest --cov=snakemake_logger_plugin_stomp --cov-report=xml:coverage-report/coverage.xml --cov-report=term-missing tests/"
+install-dev = "python -m pip install ."
+test = {cmd = "pytest --cov=snakemake_logger_plugin_stomp --cov-report=xml:coverage-report/coverage.xml --cov-report=term-missing tests/", depends-on = ["install-dev"]}
 build = "python -m build"
 check-build = {cmd = "python -m twine check dist/*", depends-on = ["build"]}
 
