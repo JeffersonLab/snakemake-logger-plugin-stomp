@@ -1,6 +1,6 @@
 [project]
 name = "snakemake-logger-plugin-stomp"
-version = "0.1.1"
+version = "0.1.2"
 description = "Snakemake logger plugin for streaming events to STOMP message brokers"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
