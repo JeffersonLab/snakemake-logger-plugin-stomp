@@ -40,7 +40,6 @@ venv.bak/
 
 # Pixi
 .pixi/
-pixi.lock
 
 # IDE
 .vscode/
