@@ -38,6 +38,7 @@ jobs:
         with:
           cache: true
           environments: dev
+          pixi-version: v0.63.2
 
       - name: Build distribution packages
         run: pixi run -e dev build

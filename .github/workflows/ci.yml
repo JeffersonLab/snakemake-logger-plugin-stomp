@@ -21,6 +21,7 @@ jobs:
         with:
           cache: true
           environments: dev
+          pixi-version: v0.63.2
 
       - name: Check formatting
         run: pixi run -e dev format-check
