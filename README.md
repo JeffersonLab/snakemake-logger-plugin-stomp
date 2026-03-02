@@ -10,11 +10,12 @@ pip install snakemake-logger-plugin-stomp
 
 ## Quick Start
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-host localhost \
-  --stomp-port 61613 \
-  --stomp-user admin \
-  --stomp-password admin
+snakemake --logger stomp \
+  --logger-stomp-host localhost \
+  --logger-stomp-port 61613 \
+  --logger-stomp-user admin \
+  --logger-stomp-password admin \
+  --logger-stomp-queue /queue/snakemake.events
 ```
 
 Or use a profile:

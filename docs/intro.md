@@ -22,11 +22,12 @@ pip install snakemake-logger-plugin-stomp
 ### Command Line
 
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-host localhost \
-  --stomp-port 61613 \
-  --stomp-user admin \
-  --stomp-password admin
+snakemake --logger stomp \
+  --logger-stomp-host localhost \
+  --logger-stomp-port 61613 \
+  --logger-stomp-user admin \
+  --logger-stomp-password admin \
+  --logger-stomp-queue /queue/snakemake.events
 ```
 
 ### Profile Configuration
@@ -55,7 +56,7 @@ Secure credentials using environment variables:
 export SNAKEMAKE_LOGGER_STOMP_HOST=activemq.example.com
 export SNAKEMAKE_LOGGER_STOMP_USER=admin
 export SNAKEMAKE_LOGGER_STOMP_PASSWORD=secret
-snakemake --logger-plugin stomp
+snakemake --logger stomp
 ```
 
 ## Use Cases

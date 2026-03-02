@@ -19,12 +19,12 @@ logger:
 
 **Command line:**
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-host secure-broker.example.com \
-  --stomp-port 61614 \
-  --stomp-use-ssl \
-  --stomp-cert-file /path/to/client.crt \
-  --stomp-key-file /path/to/client.key
+snakemake --logger stomp \
+  --logger-stomp-host secure-broker.example.com \
+  --logger-stomp-port 61614 \
+  --logger-stomp-use-ssl \
+  --logger-stomp-cert-file /path/to/client.crt \
+  --logger-stomp-key-file /path/to/client.key
 ```
 
 ## Event Filtering
@@ -36,8 +36,8 @@ Control which events generate messages to reduce noise or focus on specific work
 Only send specific events:
 
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-include-events "WORKFLOW_STARTED,JOB_STARTED,JOB_FINISHED,WORKFLOW_FINISHED"
+snakemake --logger stomp \
+  --logger-stomp-include-events "WORKFLOW_STARTED,JOB_STARTED,JOB_FINISHED,WORKFLOW_FINISHED"
 ```
 
 ### Blacklist Approach
@@ -45,8 +45,8 @@ snakemake --logger-plugin stomp \
 Exclude noisy events:
 
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-exclude-events "DEBUG,PROGRESS,RESOURCES_INFO"
+snakemake --logger stomp \
+  --logger-stomp-exclude-events "DEBUG,PROGRESS,RESOURCES_INFO"
 ```
 
 **Available events:** `WORKFLOW_STARTED`, `WORKFLOW_FINISHED`, `JOB_STARTED`, `JOB_FINISHED`, `JOB_ERROR`, `DEBUG`, `PROGRESS`, `RESOURCES_INFO`, and more.
@@ -102,8 +102,8 @@ Nested schema compliant with JLab Scientific Workflow Facility standards:
 **To use JLabSWFFormatter:**
 
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-formatter-class "snakemake_logger_plugin_stomp.formatters.JLabSWFFormatter"
+snakemake --logger stomp \
+  --logger-stomp-formatter-class "snakemake_logger_plugin_stomp.formatters.JLabSWFFormatter"
 ```
 
 The `SWF_RUN_NUMBER` environment variable can be set to populate the `correlation.run_number` field for tracking related workflow runs.
@@ -131,8 +131,8 @@ class MyFormatter(BaseFormatter):
 Install your formatter in the same Python environment, then reference it:
 
 ```bash
-snakemake --logger-plugin stomp \
-  --stomp-formatter-class "my_formatter.MyFormatter"
+snakemake --logger stomp \
+  --logger-stomp-formatter-class "my_formatter.MyFormatter"
 ```
 
 ## Heartbeat Tuning
