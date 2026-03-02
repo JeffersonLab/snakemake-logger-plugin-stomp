@@ -1,5 +1,7 @@
 # Snakemake Logger Plugin for STOMP
 
+[![PyPI version](https://img.shields.io/pypi/v/snakemake-logger-plugin-stomp.svg)](https://pypi.org/project/snakemake-logger-plugin-stomp/) [![CI](https://github.com/jeffersonlab/snakemake-logger-plugin-stomp/actions/workflows/ci.yml/badge.svg)](https://github.com/jeffersonlab/snakemake-logger-plugin-stomp/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Send Snakemake workflow events monitoring to a STOMP message broker (ActiveMQ, RabbitMQ, etc.) in real-time.
 
 ## Installation
