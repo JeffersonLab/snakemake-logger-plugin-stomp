@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/compare/snakemake-logger-plugin-stomp-v0.1.0...snakemake-logger-plugin-stomp-v0.1.1) (2026-03-02)
+
+
+### Documentation
+
+* update README.md and documentation ([fc6222e](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/commit/fc6222ea8a515772f1ada3ac6ba0223021eb75dc))
+
 ## [0.1.0](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/compare/snakemake-logger-plugin-stomp-v0.0.1...snakemake-logger-plugin-stomp-v0.1.0) (2026-03-02)
 
 
