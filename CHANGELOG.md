@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/compare/snakemake-logger-plugin-stomp-v0.1.1...snakemake-logger-plugin-stomp-v0.1.2) (2026-03-02)
+
+
+### Documentation
+
+* add badges and name in License ([5816a7b](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/commit/5816a7bb248b9f8603268d3c7288ea7ed39fd794))
+
 ## [0.1.1](https://github.com/JeffersonLab/snakemake-logger-plugin-stomp/compare/snakemake-logger-plugin-stomp-v0.1.0...snakemake-logger-plugin-stomp-v0.1.1) (2026-03-02)
 
 
