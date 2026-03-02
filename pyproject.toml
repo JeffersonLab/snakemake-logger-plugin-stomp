@@ -55,10 +55,6 @@ dev = [
 channels = ["conda-forge"]
 platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
 
-[tool.pixi.pypi-dependencies.snakemake_logger_plugin_stomp]
-path = "."
-editable = true
-
 [tool.pixi.environments]
 default = {solve-group = "default"}
 dev = {features = ["dev"], solve-group = "default"}
