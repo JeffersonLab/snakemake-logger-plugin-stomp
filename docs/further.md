@@ -108,6 +108,40 @@ snakemake --logger stomp \
 
 The `SWF_RUN_NUMBER` environment variable can be set to populate the `correlation.run_number` field for tracking related workflow runs.
 
+### ComprehensiveEventFormatter
+
+Human-readable event view with rich passthrough of Snakemake event attributes.
+This formatter keeps top-level context fields and adds an `event_details` section
+containing nearly all event-specific data available on the log record.
+
+```json
+{
+  "timestamp": "2024-01-15T14:30:00Z",
+  "hostname": "compute-node-01",
+  "workflow_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_type": "job_finished",
+  "level": "INFO",
+  "message": "Rule completed",
+  "summary": "Job Finished | rule=align_reads | job=5 | wildcards={'sample': 'A'} | Rule completed",
+  "event_details": {
+    "event": "job_finished",
+    "jobid": 5,
+    "name": "align_reads",
+    "wildcards": {"sample": "A"},
+    "threads": 4,
+    "resources": {"mem_mb": 16000},
+    "benchmark": "bench/align_reads.txt"
+  }
+}
+```
+
+**To use ComprehensiveEventFormatter:**
+
+```bash
+snakemake --logger stomp \
+  --logger-stomp-formatter-class "snakemake_logger_plugin_stomp.formatters.ComprehensiveEventFormatter"
+```
+
 ## Custom Formatters
 
 Create your own formatter by implementing the `BaseFormatter` interface:

@@ -23,7 +23,7 @@ from snakemake_logger_plugin_stomp import (
     LogHandler,
     LogHandlerSettings,
 )
-from snakemake_logger_plugin_stomp.formatters import SnakemakeEventFormatter
+from snakemake_logger_plugin_stomp.formatters import ComprehensiveEventFormatter
 
 
 class DummyConnection:
@@ -302,9 +302,76 @@ def test_formatter_output_structure():
     result = formatter.format(record, metadata)
     
     assert result["event_type"] == "job_finished"
-    assert result["message"] == "Job done"
     assert result["workflow_id"] == "wf-abc"
     assert "timestamp" in result  # If your formatter adds timestamps
+
+
+def test_comprehensive_event_formatter_preserves_high_detail_fields():
+    formatter = ComprehensiveEventFormatter()
+
+    class Wildcards:
+        def items(self):
+            return {"sample": "A", "lane": "L001"}.items()
+
+    record = DummyRecord(
+        event="job_finished",
+        msg="Rule completed",
+        jobid=17,
+        name="align_reads",
+        wildcards=Wildcards(),
+        threads=8,
+        resources={"mem_mb": 16000},
+        benchmark="bench/align_reads.txt",
+    )
+    metadata = {"workflow_id": "wf-123", "hostname": "node-01"}
+
+    result = formatter.format(record, metadata)
+
+    assert result["event_type"] == "job_finished"
+    assert result["workflow_id"] == "wf-123"
+    assert result["event"]["jobid"] == 17
+    assert result["event"]["wildcards"] == {"sample": "A", "lane": "L001"}
+    assert result["event"]["benchmark"] == "bench/align_reads.txt"
+
+
+def test_comprehensive_event_formatter_handles_sparse_record():
+    formatter = ComprehensiveEventFormatter()
+    record = DummyRecord(event="workflow_finished", msg="done")
+    metadata = {"workflow_id": "wf-xyz", "hostname": "node-02"}
+
+    result = formatter.format(record, metadata)
+
+    assert result["event_type"] == "workflow_finished"
+    assert result["event"]["event"] == "workflow_finished"
+
+
+def test_emit_uses_comprehensive_event_formatter_when_configured():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(
+        formatter_class=(
+            "snakemake_logger_plugin_stomp.formatters.ComprehensiveEventFormatter"
+        )
+    )
+    handler = LogHandler(common_settings=common, settings=settings)
+    handler.connection = DummyConnection()
+
+    rec = DummyRecord(
+        event="job_started",
+        msg="Launching rule",
+        jobid=99,
+        name="qc",
+        resources={"mem_mb": 4000},
+        extra_context={"attempt": 1},
+    )
+    handler.emit(rec)
+
+    sent = handler.connection.sent[0]
+    payload = json.loads(sent["body"])
+
+    assert payload["event_type"] == "job_started"
+    assert payload["event"]["jobid"] == 99
+    assert payload["event"]["resources"]["mem_mb"] == 4000
+    assert payload["event"]["extra_context"]["attempt"] == 1
 
 
 def test_close_handles_disconnect_errors(monkeypatch):

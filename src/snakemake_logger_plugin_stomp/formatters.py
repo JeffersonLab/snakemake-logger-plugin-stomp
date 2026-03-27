@@ -187,12 +187,8 @@ class JLabSWFFormatter(BaseFormatter):
         }
 
 
-class SnakemakeEventFormatter(BaseFormatter):
-    """Human-focused formatter with rich Snakemake event details.
-
-    This formatter keeps a readable top-level summary while preserving as much
-    event data from the underlying log record as possible.
-    """
+class ComprehensiveEventFormatter(BaseFormatter):
+    """Formatter for logging comprehensive Snakemake event details."""
 
     def _normalize_value(self, value: Any) -> Any:
         """Convert common Snakemake/LogRecord values into JSON-friendly forms."""

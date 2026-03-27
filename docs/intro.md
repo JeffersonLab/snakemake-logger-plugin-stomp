@@ -7,7 +7,7 @@ Stream Snakemake workflow events to STOMP message brokers (ActiveMQ, RabbitMQ, A
 - **Real-time event streaming** to STOMP-compatible message brokers
 - **RabbitMQ stream queue support** for append-only log style destinations
 - **SSL/TLS encryption** for secure production deployments
-- **Flexible formatters** - default flat JSON or JLab Scientific Workflow schema
+- **Flexible formatters** - default flat JSON, JLab Scientific Workflow schema, or comprehensive Snakemake logs
 - **Event filtering** - include/exclude specific event types to reduce noise
 - **Custom formatters** - plugin your own formatter classes
 - **Environment variable support** for credentials and sensitive configuration

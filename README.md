@@ -37,7 +37,7 @@ logger:
   - JSON event streaming to message brokers
   - RabbitMQ stream queue support via STOMP queue headers
   - SSL/TLS support
-  - Configurable formatters (default + JLab SWF schema)
+  - Configurable formatters (default + JLab SWF schema + ComprehensiveEventFormatter)
   - Event filtering (include/exclude)
   - Heartbeat management
   - Environment variable support for secrets
