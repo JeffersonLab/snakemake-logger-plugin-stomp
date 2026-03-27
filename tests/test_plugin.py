@@ -23,6 +23,7 @@ from snakemake_logger_plugin_stomp import (
     LogHandler,
     LogHandlerSettings,
 )
+from snakemake_logger_plugin_stomp.formatters import SnakemakeEventFormatter
 
 
 class DummyConnection:
@@ -229,6 +230,45 @@ def test_send_when_not_connected():
     
     # Should not raise, should log debug message
     handler._send_to_broker({"test": "data"})
+
+
+def test_stream_first_send_declares_queue_once():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(
+        queue="/queue/snakemake.stream",
+        use_stream=True,
+    )
+    handler = LogHandler(common_settings=common, settings=settings)
+    handler.connection = DummyConnection()
+
+    handler.emit(DummyRecord(event="workflow_started", msg="start"))
+    handler.emit(DummyRecord(event="job_finished", msg="done"))
+
+    first_headers = handler.connection.sent[0]["headers"]
+    second_headers = handler.connection.sent[1]["headers"]
+
+    assert first_headers["x-queue-type"] == "stream"
+    assert "x-queue-type" not in second_headers
+
+
+def test_stream_amq_queue_destination_includes_declaration_and_filter_headers():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(
+        queue="/amq/queue/snakemake.stream",
+        use_stream=True,
+        stream_filter_value="job-events",
+    )
+    handler = LogHandler(common_settings=common, settings=settings)
+    handler.connection = DummyConnection()
+
+    handler.emit(DummyRecord(event="job_started", msg="start"))
+
+    headers = handler.connection.sent[0]["headers"]
+    assert headers["x-queue-type"] == "stream"
+    assert headers["x-stream-filter-value"] == "job-events"
+
+
+
 
 def test_listener_on_error_called(monkeypatch):
     """Verify StompConnectionListener logs broker errors."""

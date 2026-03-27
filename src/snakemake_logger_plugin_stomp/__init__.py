@@ -125,6 +125,20 @@ class LogHandlerSettings(LogHandlerSettingsBase):
             "env_var": False,
         },
     )
+    use_stream: bool = field(
+        default=False,
+        metadata={
+            "help": "Declare the configured queue destination as a RabbitMQ stream",
+            "env_var": False,
+        },
+    )
+    stream_filter_value: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "Static RabbitMQ x-stream-filter-value for outbound messages",
+            "env_var": False,
+        },
+    )
 
 
 class StompConnectionListener(stomp.ConnectionListener):
@@ -184,12 +198,15 @@ class LogHandler(LogHandlerBase):
 
         # STOMP connection handle
         self.connection = None
+        self._stream_declared = False
 
         # Workflow tracking metadata
         self.workflow_metadata = {
             "workflow_id": None,  # Generated on WORKFLOW_STARTED event
             "hostname": socket.gethostname(),
         }
+
+        self._validate_stream_settings()
 
         # Load and initialize the configured formatter
         self.formatter_instance = self._init_formatter()
@@ -285,6 +302,42 @@ class LogHandler(LogHandlerBase):
                     f"STOMP logging required but broker unavailable: {e}"
                 ) from e
 
+    def _validate_stream_settings(self) -> None:
+        """Validate RabbitMQ stream-specific settings."""
+        if not self.settings.use_stream:
+            return
+
+        if self.settings.stream_filter_value is not None and not str(self.settings.stream_filter_value).strip():
+            raise ValueError("stream_filter_value cannot be empty")
+
+    def _should_declare_stream_on_send(self) -> bool:
+        """Whether the next publish should include stream declaration headers."""
+        return self.settings.use_stream and not self._stream_declared
+
+    def _build_stream_declare_headers(self) -> dict[str, str]:
+        """Build RabbitMQ queue declaration headers for stream destinations."""
+        if not self._should_declare_stream_on_send():
+            return {}
+
+        return {"x-queue-type": "stream"}
+
+    def _build_stream_publish_headers(self, event_data: dict) -> dict[str, str]:
+        """Build per-message RabbitMQ stream headers."""
+        if not self.settings.use_stream or self.settings.stream_filter_value is None:
+            return {}
+
+        return {"x-stream-filter-value": self.settings.stream_filter_value}
+
+    def _build_send_headers(self, event_data: dict) -> dict[str, str]:
+        """Build STOMP SEND headers for the next event publish."""
+        headers = {
+            "persistent": "true",
+            "content-type": "application/json",
+        }
+        headers.update(self._build_stream_declare_headers())
+        headers.update(self._build_stream_publish_headers(event_data))
+        return headers
+
     def _send_to_broker(self, event_data: dict):
         """Send formatted event data to STOMP broker.
 
@@ -300,14 +353,15 @@ class LogHandler(LogHandlerBase):
 
         try:
             # Send message with JSON body and appropriate headers
+            headers = self._build_send_headers(event_data)
             self.connection.send(
                 body=json.dumps(event_data, default=str),
                 destination=self.settings.queue,
-                headers={
-                    "persistent": "true",  # Request broker persistence
-                    "content-type": "application/json",
-                },
+                headers=headers,
             )
+
+            if self._should_declare_stream_on_send():
+                self._stream_declared = True
 
             self._internal_logger.debug(
                 f"[STOMP] Sent event: {event_data.get('event_type', 'UNKNOWN')}"

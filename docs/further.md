@@ -198,6 +198,52 @@ queue: "/topic/snakemake.broadcast"
 
 Use **queues** when you want load balancing across multiple consumers. Use **topics** when multiple systems need to receive all events (e.g., monitoring + archival + alerting).
 
+## RabbitMQ Streams
+
+RabbitMQ streams are a queue type exposed by the RabbitMQ STOMP adapter. This plugin
+supports stream publishing and stream declaration for queue destinations.
+
+### Creating a Stream
+
+Use a `/queue/<name>` destination together with `use_stream: true` to have RabbitMQ
+declare the destination as a stream on first publish:
+
+```yaml
+logger:
+  stomp:
+    queue: "/queue/snakemake.stream"
+    use_stream: true
+```
+
+### Publishing to an Existing Stream
+
+Use `/amq/queue/<name>` when the stream already exists and should not be redeclared:
+
+```yaml
+logger:
+  stomp:
+    queue: "/amq/queue/snakemake.stream"
+    use_stream: true
+```
+
+### Stream Filter Headers
+
+RabbitMQ streams support outbound filter values on published messages. Use `stream_filter_value`
+to set a static filter value applied to each published event:
+
+```yaml
+logger:
+  stomp:
+    queue: "/queue/snakemake.stream"
+    use_stream: true
+    stream_filter_value: "snakemake-workflow-logs"
+```
+
+### Constraints
+
+- Stream support is publish-only in this plugin.
+- RabbitMQ queue type is immutable, so an existing classic queue cannot be converted in place.
+
 ## Complete Production Example
 
 A full production configuration combining SSL, event filtering, custom formatter, and heartbeat tuning:

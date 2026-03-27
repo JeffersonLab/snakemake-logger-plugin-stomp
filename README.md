@@ -35,8 +35,34 @@ logger:
 ## Features
 
   - JSON event streaming to message brokers
+  - RabbitMQ stream queue support via STOMP queue headers
   - SSL/TLS support
   - Configurable formatters (default + JLab SWF schema)
   - Event filtering (include/exclude)
   - Heartbeat management
   - Environment variable support for secrets
+
+## RabbitMQ Streams
+
+RabbitMQ streams are supported as a queue type when the broker is accessed via the
+RabbitMQ STOMP adapter.
+
+Example profile configuration:
+
+```yaml
+logger:
+  stomp:
+    host: "rabbitmq.example.com"
+    port: 61613
+    user: "${STOMP_USER}"
+    password: "${STOMP_PASSWORD}"
+    queue: "/queue/snakemake.stream"
+    use_stream: true
+    stream_filter_value: "snakemake-events"
+```
+
+Notes:
+
+- RabbitMQ stream support in this plugin is publish-only.
+- RabbitMQ queue type is immutable. If a destination already exists as a classic queue,
+  it must be deleted and recreated as a stream before `use_stream: true` will work.

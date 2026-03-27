@@ -13,6 +13,32 @@ from datetime import UTC, datetime
 from typing import Any
 
 
+# Standard logging.LogRecord attributes that are not Snakemake event payload.
+_LOG_RECORD_INTERNAL_ATTRS = {
+    "args",
+    "asctime",
+    "created",
+    "exc_info",
+    "exc_text",
+    "filename",
+    "funcName",
+    "levelname",
+    "levelno",
+    "lineno",
+    "module",
+    "msecs",
+    "msg",
+    "name",
+    "pathname",
+    "process",
+    "processName",
+    "relativeCreated",
+    "stack_info",
+    "thread",
+    "threadName",
+}
+
+
 class BaseFormatter(ABC):
     """Abstract base class for STOMP message formatters.
 
@@ -158,4 +184,61 @@ class JLabSWFFormatter(BaseFormatter):
             },
             "correlation": {"run_number": os.getenv("SWF_RUN_NUMBER")},
             "payload": payload,
+        }
+
+
+class SnakemakeEventFormatter(BaseFormatter):
+    """Human-focused formatter with rich Snakemake event details.
+
+    This formatter keeps a readable top-level summary while preserving as much
+    event data from the underlying log record as possible.
+    """
+
+    def _normalize_value(self, value: Any) -> Any:
+        """Convert common Snakemake/LogRecord values into JSON-friendly forms."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+
+        if isinstance(value, dict):
+            return {
+                str(key): self._normalize_value(item) for key, item in value.items()
+            }
+
+        if isinstance(value, (list, tuple, set)):
+            return [self._normalize_value(item) for item in value]
+
+        # Snakemake wildcards and similar objects often expose items().
+        if hasattr(value, "items"):
+            try:
+                return {
+                    str(key): self._normalize_value(item)
+                    for key, item in value.items()
+                }
+            except Exception:  # pragma: no cover - defensive fallback
+                return str(value)
+
+        return str(value)
+
+    def _extract_event_details(self, record: Any) -> dict:
+        """Extract event-centric fields while excluding logging internals."""
+        details = {}
+
+        for attr, value in vars(record).items():
+            if attr.startswith("_") or attr in _LOG_RECORD_INTERNAL_ATTRS:
+                continue
+            if callable(value):
+                continue
+            details[attr] = self._normalize_value(value)
+
+        return details
+
+    def format(self, record, workflow_metadata):
+        """Format record with rich Snakemake event details."""
+        return {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "hostname": workflow_metadata.get("hostname"),
+            "workflow_id": workflow_metadata.get("workflow_id"),
+            "event_type": str(getattr(record, "event", "UNKNOWN")),
+            "level": getattr(record, "levelname", "INFO"),
+            "event": self._extract_event_details(record),
         }
