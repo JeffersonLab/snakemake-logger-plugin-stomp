@@ -262,15 +262,16 @@ logger:
 
 ### Stream Filter Headers
 
-RabbitMQ streams support outbound filter values on published messages. Use `stream_filter_value`
-to set a static filter value applied to each published event:
+RabbitMQ streams support outbound filter values on published messages. Use
+`stream_filter_by_workflow: true` to set `x-stream-filter-value` to the current
+Snakemake `workflow_id` on each published event once the workflow ID is available:
 
 ```yaml
 logger:
   stomp:
     queue: "/queue/snakemake.stream"
     use_stream: true
-    stream_filter_value: "snakemake-workflow-logs"
+    stream_filter_by_workflow: true
 ```
 
 ### Constraints

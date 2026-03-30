@@ -74,7 +74,7 @@ logger:
     password: "${STOMP_PASSWORD}"
     queue: "/queue/snakemake.stream"
     use_stream: true
-    stream_filter_value: "snakemake-events"
+    stream_filter_by_workflow: true
 ```
 
 Notes:

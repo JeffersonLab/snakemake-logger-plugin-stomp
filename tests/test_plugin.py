@@ -101,6 +101,7 @@ def test_settings_defaults():
     assert settings.queue == "/queue/snakemake.events"
     assert settings.user is None
     assert settings.password is None
+    assert settings.stream_filter_by_workflow is False
     assert settings.consumer_heartbeat_interval == 0
 
 
@@ -280,12 +281,29 @@ def test_stream_first_send_declares_queue_once():
     assert "x-queue-type" not in second_headers
 
 
-def test_stream_amq_queue_destination_includes_declaration_and_filter_headers():
+def test_stream_amq_queue_destination_includes_declaration_and_workflow_filter_headers():
     common = MockOutputSettings()
     settings = LogHandlerSettings(
         queue="/amq/queue/snakemake.stream",
         use_stream=True,
-        stream_filter_value="job-events",
+        stream_filter_by_workflow=True,
+    )
+    handler = LogHandler(common_settings=common, settings=settings)
+    handler.connection = DummyConnection()
+
+    handler.emit(DummyRecord(event="workflow_started", msg="start"))
+
+    headers = handler.connection.sent[0]["headers"]
+    assert headers["x-queue-type"] == "stream"
+    assert headers["x-stream-filter-value"] == handler.workflow_metadata["workflow_id"]
+
+
+def test_stream_filter_by_workflow_skips_filter_header_until_workflow_id_exists():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(
+        queue="/queue/snakemake.stream",
+        use_stream=True,
+        stream_filter_by_workflow=True,
     )
     handler = LogHandler(common_settings=common, settings=settings)
     handler.connection = DummyConnection()
@@ -293,8 +311,7 @@ def test_stream_amq_queue_destination_includes_declaration_and_filter_headers():
     handler.emit(DummyRecord(event="job_started", msg="start"))
 
     headers = handler.connection.sent[0]["headers"]
-    assert headers["x-queue-type"] == "stream"
-    assert headers["x-stream-filter-value"] == "job-events"
+    assert "x-stream-filter-value" not in headers
 
 
 

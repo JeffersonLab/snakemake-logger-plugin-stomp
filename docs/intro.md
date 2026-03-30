@@ -62,7 +62,7 @@ logger:
     password: "${STOMP_PASSWORD}"
     queue: "/queue/snakemake.stream"
     use_stream: true
-    stream_filter_value: "snakemake-events"
+    stream_filter_by_workflow: true
 ```
 
 Use `/queue/<name>` to create a new stream on first publish. Use `/amq/queue/<name>`

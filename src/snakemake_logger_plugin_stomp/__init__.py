@@ -134,10 +134,10 @@ class LogHandlerSettings(LogHandlerSettingsBase):
             "env_var": False,
         },
     )
-    stream_filter_value: Optional[str] = field(
-        default=None,
+    stream_filter_by_workflow: bool = field(
+        default=False,
         metadata={
-            "help": "Static RabbitMQ x-stream-filter-value for outbound messages",
+            "help": "Set RabbitMQ x-stream-filter-value header to workflow_id on outbound messages",
             "env_var": False,
         },
     )
@@ -333,9 +333,6 @@ class LogHandler(LogHandlerBase):
         if not self.settings.use_stream:
             return
 
-        if self.settings.stream_filter_value is not None and not str(self.settings.stream_filter_value).strip():
-            raise ValueError("stream_filter_value cannot be empty")
-
     def _validate_consumer_heartbeat_settings(self) -> None:
         """Validate consumer heartbeat settings."""
         if self.settings.consumer_heartbeat_interval < 0:
@@ -406,21 +403,25 @@ class LogHandler(LogHandlerBase):
 
         return {"x-queue-type": "stream"}
 
-    def _build_stream_publish_headers(self, event_data: dict) -> dict[str, str]:
+    def _build_stream_publish_headers(self) -> dict[str, str]:
         """Build per-message RabbitMQ stream headers."""
-        if not self.settings.use_stream or self.settings.stream_filter_value is None:
+        if not self.settings.use_stream or not self.settings.stream_filter_by_workflow:
             return {}
 
-        return {"x-stream-filter-value": self.settings.stream_filter_value}
+        workflow_id = self.workflow_metadata.get("workflow_id")
+        if not workflow_id:
+            return {}
 
-    def _build_send_headers(self, event_data: dict) -> dict[str, str]:
+        return {"x-stream-filter-value": workflow_id}
+
+    def _build_send_headers(self) -> dict[str, str]:
         """Build STOMP SEND headers for the next event publish."""
         headers = {
             "persistent": "true",
             "content-type": "application/json",
         }
         headers.update(self._build_stream_declare_headers())
-        headers.update(self._build_stream_publish_headers(event_data))
+        headers.update(self._build_stream_publish_headers())
         return headers
 
     def _send_to_broker(self, event_data: dict):
@@ -438,7 +439,7 @@ class LogHandler(LogHandlerBase):
 
         try:
             # Send message with JSON body and appropriate headers
-            headers = self._build_send_headers(event_data)
+            headers = self._build_send_headers()
             self.connection.send(
                 body=json.dumps(event_data, default=str),
                 destination=self.settings.queue,
