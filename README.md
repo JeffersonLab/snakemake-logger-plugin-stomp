@@ -40,7 +40,23 @@ logger:
   - Configurable formatters (default + JLab SWF schema + ComprehensiveEventFormatter)
   - Event filtering (include/exclude)
   - Heartbeat management
+  - Optional application-level consumer heartbeat events
   - Environment variable support for secrets
+
+## Consumer Heartbeat Events
+
+In addition to STOMP transport heartbeats, you can emit periodic heartbeat messages
+that are delivered to consumers on the configured destination.
+
+Set `consumer_heartbeat_interval` in seconds:
+
+```yaml
+logger:
+  stomp:
+    consumer_heartbeat_interval: 30
+```
+
+Use `0` (default) to disable consumer heartbeat events.
 
 ## RabbitMQ Streams
 

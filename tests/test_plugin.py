@@ -101,6 +101,15 @@ def test_settings_defaults():
     assert settings.queue == "/queue/snakemake.events"
     assert settings.user is None
     assert settings.password is None
+    assert settings.consumer_heartbeat_interval == 0
+
+
+def test_consumer_heartbeat_interval_must_be_non_negative():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(consumer_heartbeat_interval=-1)
+
+    with pytest.raises(ValueError, match="consumer_heartbeat_interval must be >= 0"):
+        LogHandler(common_settings=common, settings=settings)
 
 
 def test_formatter_loads_and_falls_back(monkeypatch):
@@ -139,6 +148,7 @@ def test_emit_creates_workflow_id_and_sends():
     handler.emit(rec)
 
     assert handler.workflow_metadata["workflow_id"] is not None
+    assert handler.workflow_metadata["workflow_start_timestamp"] is not None
 
     assert len(handler.connection.sent) == 1
     sent = handler.connection.sent[0]
@@ -230,6 +240,25 @@ def test_send_when_not_connected():
     
     # Should not raise, should log debug message
     handler._send_to_broker({"test": "data"})
+
+
+def test_emit_consumer_heartbeat_sends_event_for_consumers():
+    common = MockOutputSettings()
+    settings = LogHandlerSettings(consumer_heartbeat_interval=30)
+    handler = LogHandler(common_settings=common, settings=settings)
+    handler.connection = DummyConnection()
+    handler.workflow_metadata["workflow_id"] = "wf-123"
+    handler.workflow_metadata["workflow_start_timestamp"] = "2026-03-30T12:00:00+00:00"
+
+    handler._emit_consumer_heartbeat()
+
+    assert len(handler.connection.sent) == 1
+    payload = json.loads(handler.connection.sent[0]["body"])
+    assert payload["event_type"] == "consumer_heartbeat"
+    assert payload["heartbeat"] is True
+    assert payload["workflow_id"] == "wf-123"
+    assert payload["workflow_start_timestamp"] == "2026-03-30T12:00:00+00:00"
+    assert payload["heartbeat_interval_seconds"] == 30
 
 
 def test_stream_first_send_declares_queue_once():

@@ -11,8 +11,10 @@ import json
 import logging as py_logging
 import socket
 import ssl
+import threading
 import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Optional
 
 import stomp
@@ -139,6 +141,13 @@ class LogHandlerSettings(LogHandlerSettingsBase):
             "env_var": False,
         },
     )
+    consumer_heartbeat_interval: float = field(
+        default=0,
+        metadata={
+            "help": "Application-level consumer heartbeat interval in seconds (0 to disable)",
+            "env_var": False,
+        },
+    )
 
 
 class StompConnectionListener(stomp.ConnectionListener):
@@ -166,6 +175,18 @@ class StompConnectionListener(stomp.ConnectionListener):
     def on_disconnected(self):
         """Handle disconnection from STOMP broker."""
         self.logger.warning("[STOMP] Disconnected from broker")
+
+
+class _ConsumerHeartbeatRecord:
+    """Lightweight synthetic record for consumer heartbeat events."""
+
+    event = "consumer_heartbeat"
+    levelname = "INFO"
+    msg = "Consumer heartbeat"
+    heartbeat = True
+
+    def getMessage(self):
+        return self.msg
 
 
 class LogHandler(LogHandlerBase):
@@ -199,14 +220,18 @@ class LogHandler(LogHandlerBase):
         # STOMP connection handle
         self.connection = None
         self._stream_declared = False
+        self._consumer_heartbeat_stop_event = threading.Event()
+        self._consumer_heartbeat_thread = None
 
         # Workflow tracking metadata
         self.workflow_metadata = {
             "workflow_id": None,  # Generated on WORKFLOW_STARTED event
+            "workflow_start_timestamp": None,
             "hostname": socket.gethostname(),
         }
 
         self._validate_stream_settings()
+        self._validate_consumer_heartbeat_settings()
 
         # Load and initialize the configured formatter
         self.formatter_instance = self._init_formatter()
@@ -224,6 +249,7 @@ class LogHandler(LogHandlerBase):
 
         # Establish connection to STOMP broker
         self._connect_to_broker()
+        self._start_consumer_heartbeat_loop()
 
     def _init_formatter(self):
         """Load and instantiate the configured formatter class.
@@ -309,6 +335,65 @@ class LogHandler(LogHandlerBase):
 
         if self.settings.stream_filter_value is not None and not str(self.settings.stream_filter_value).strip():
             raise ValueError("stream_filter_value cannot be empty")
+
+    def _validate_consumer_heartbeat_settings(self) -> None:
+        """Validate consumer heartbeat settings."""
+        if self.settings.consumer_heartbeat_interval < 0:
+            raise ValueError("consumer_heartbeat_interval must be >= 0")
+
+    def _start_consumer_heartbeat_loop(self) -> None:
+        """Start background loop that emits consumer heartbeat events."""
+        if self.settings.consumer_heartbeat_interval <= 0:
+            return
+
+        self._consumer_heartbeat_thread = threading.Thread(
+            target=self._consumer_heartbeat_loop,
+            name="stomp-consumer-heartbeat",
+            daemon=True,
+        )
+        self._consumer_heartbeat_thread.start()
+        self._internal_logger.info(
+            "[STOMP] Consumer heartbeat enabled every "
+            f"{self.settings.consumer_heartbeat_interval}s"
+        )
+
+    def _consumer_heartbeat_loop(self) -> None:
+        """Emit consumer heartbeat events at a configured interval."""
+        interval = self.settings.consumer_heartbeat_interval
+
+        while not self._consumer_heartbeat_stop_event.wait(interval):
+            self._emit_consumer_heartbeat()
+
+    def _emit_consumer_heartbeat(self) -> None:
+        """Emit one synthetic heartbeat event intended for downstream consumers."""
+        try:
+            event_data = self.formatter_instance.format(
+                _ConsumerHeartbeatRecord(), self.workflow_metadata
+            )
+        except Exception as e:
+            self._internal_logger.error(
+                f"[STOMP] Formatter error for consumer heartbeat event: {e}"
+            )
+            return
+
+        # Ensure heartbeat semantics are explicit even with custom formatters.
+        if isinstance(event_data, dict):
+            event_data.setdefault("event_type", "consumer_heartbeat")
+            event_data.setdefault("heartbeat", True)
+            event_data.setdefault(
+                "workflow_id",
+                self.workflow_metadata.get("workflow_id"),
+            )
+            event_data.setdefault(
+                "workflow_start_timestamp",
+                self.workflow_metadata.get("workflow_start_timestamp"),
+            )
+            event_data.setdefault(
+                "heartbeat_interval_seconds",
+                self.settings.consumer_heartbeat_interval,
+            )
+
+        self._send_to_broker(event_data)
 
     def _should_declare_stream_on_send(self) -> bool:
         """Whether the next publish should include stream declaration headers."""
@@ -420,6 +505,9 @@ class LogHandler(LogHandlerBase):
             and not self.workflow_metadata["workflow_id"]
         ):
             self.workflow_metadata["workflow_id"] = str(uuid.uuid4())
+            self.workflow_metadata["workflow_start_timestamp"] = datetime.now(
+                UTC
+            ).isoformat()
             self._internal_logger.info(
                 f"[STOMP] Generated workflow ID: {self.workflow_metadata['workflow_id']}"
             )
@@ -441,6 +529,10 @@ class LogHandler(LogHandlerBase):
 
         Called when Snakemake workflow completes or logger is being shut down.
         """
+        self._consumer_heartbeat_stop_event.set()
+        if self._consumer_heartbeat_thread and self._consumer_heartbeat_thread.is_alive():
+            self._consumer_heartbeat_thread.join(timeout=2)
+
         if self.connection and self.connection.is_connected():
             try:
                 self.connection.disconnect()
