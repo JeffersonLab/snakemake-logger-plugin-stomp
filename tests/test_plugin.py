@@ -150,6 +150,7 @@ def test_emit_creates_workflow_id_and_sends():
 
     assert handler.workflow_metadata["workflow_id"] is not None
     assert handler.workflow_metadata["workflow_start_timestamp"] is not None
+    assert handler.workflow_metadata["working_directory_name"]
 
     assert len(handler.connection.sent) == 1
     sent = handler.connection.sent[0]
@@ -260,6 +261,7 @@ def test_emit_consumer_heartbeat_sends_event_for_consumers():
     assert payload["workflow_id"] == "wf-123"
     assert payload["workflow_start_timestamp"] == "2026-03-30T12:00:00+00:00"
     assert payload["heartbeat_interval_seconds"] == 30
+    assert payload["working_directory"] == handler.workflow_metadata["working_directory"]
 
 
 def test_stream_first_send_declares_queue_once():

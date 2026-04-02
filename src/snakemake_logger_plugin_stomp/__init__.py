@@ -9,6 +9,8 @@ event-driven integration.
 import importlib
 import json
 import logging as py_logging
+import os
+from pathlib import Path
 import socket
 import ssl
 import threading
@@ -228,6 +230,8 @@ class LogHandler(LogHandlerBase):
             "workflow_id": None,  # Generated on WORKFLOW_STARTED event
             "workflow_start_timestamp": None,
             "hostname": socket.gethostname(),
+            "working_directory": str(Path.cwd()),
+            "user": os.getenv("USER") or os.getenv("USERNAME") or "unknown",
         }
 
         self._validate_stream_settings()
@@ -388,6 +392,14 @@ class LogHandler(LogHandlerBase):
             event_data.setdefault(
                 "heartbeat_interval_seconds",
                 self.settings.consumer_heartbeat_interval,
+            )
+            event_data.setdefault(
+                "working_directory",
+                self.workflow_metadata.get("working_directory"),
+            )
+            event_data.setdefault(
+                "producer",
+                self.workflow_metadata.get("producer"),
             )
 
         self._send_to_broker(event_data)
