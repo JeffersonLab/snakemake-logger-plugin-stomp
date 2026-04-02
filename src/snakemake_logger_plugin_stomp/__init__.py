@@ -398,8 +398,8 @@ class LogHandler(LogHandlerBase):
                 self.workflow_metadata.get("working_directory"),
             )
             event_data.setdefault(
-                "producer",
-                self.workflow_metadata.get("producer"),
+                "user",
+                self.workflow_metadata.get("user"),
             )
 
         self._send_to_broker(event_data)
