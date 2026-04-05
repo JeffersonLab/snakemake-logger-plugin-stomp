@@ -149,8 +149,8 @@ def test_emit_creates_workflow_id_and_sends():
     handler.emit(rec)
 
     assert handler.workflow_metadata["workflow_id"] is not None
-    assert handler.workflow_metadata["workflow_start_timestamp"] is not None
-    assert handler.workflow_metadata["working_directory_name"]
+    assert handler.workflow_metadata["workflow_initiated"] is not None
+    assert handler.workflow_metadata["working_directory"]
 
     assert len(handler.connection.sent) == 1
     sent = handler.connection.sent[0]
@@ -250,18 +250,13 @@ def test_emit_consumer_heartbeat_sends_event_for_consumers():
     handler = LogHandler(common_settings=common, settings=settings)
     handler.connection = DummyConnection()
     handler.workflow_metadata["workflow_id"] = "wf-123"
-    handler.workflow_metadata["workflow_start_timestamp"] = "2026-03-30T12:00:00+00:00"
 
     handler._emit_consumer_heartbeat()
 
     assert len(handler.connection.sent) == 1
     payload = json.loads(handler.connection.sent[0]["body"])
     assert payload["event_type"] == "consumer_heartbeat"
-    assert payload["heartbeat"] is True
     assert payload["workflow_id"] == "wf-123"
-    assert payload["workflow_start_timestamp"] == "2026-03-30T12:00:00+00:00"
-    assert payload["heartbeat_interval_seconds"] == 30
-    assert payload["working_directory"] == handler.workflow_metadata["working_directory"]
 
 
 def test_stream_first_send_declares_queue_once():

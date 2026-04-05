@@ -231,10 +231,10 @@ class ComprehensiveEventFormatter(BaseFormatter):
     def format(self, record, workflow_metadata):
         """Format record with rich Snakemake event details."""
         return {
+            "heartbeat": record is workflow_metadata,
             "timestamp": datetime.now(UTC).isoformat(),
             "hostname": workflow_metadata.get("hostname"),
             "workflow_id": workflow_metadata.get("workflow_id"),
-            "event_type": str(getattr(record, "event", "UNKNOWN")),
             "level": getattr(record, "levelname", "INFO"),
-            "event": self._extract_event_details(record),
+            "event": workflow_metadata if record is workflow_metadata else self._extract_event_details(record),
         }

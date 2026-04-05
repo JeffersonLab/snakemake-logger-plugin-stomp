@@ -179,18 +179,6 @@ class StompConnectionListener(stomp.ConnectionListener):
         self.logger.warning("[STOMP] Disconnected from broker")
 
 
-class _ConsumerHeartbeatRecord:
-    """Lightweight synthetic record for consumer heartbeat events."""
-
-    event = "consumer_heartbeat"
-    levelname = "INFO"
-    msg = "Consumer heartbeat"
-    heartbeat = True
-
-    def getMessage(self):
-        return self.msg
-
-
 class LogHandler(LogHandlerBase):
     """Snakemake logger handler for STOMP message broker integration.
 
@@ -227,11 +215,12 @@ class LogHandler(LogHandlerBase):
 
         # Workflow tracking metadata
         self.workflow_metadata = {
-            "workflow_id": None,  # Generated on WORKFLOW_STARTED event
-            "workflow_start_timestamp": None,
+            "workflow_id": None,  # Generated on WORKFLOW_STARTED event or consumer heartbeat
             "hostname": socket.gethostname(),
             "working_directory": str(Path.cwd()),
             "user": os.getenv("USER") or os.getenv("USERNAME") or "unknown",
+            "heartbeat_interval_seconds": self.settings.consumer_heartbeat_interval,
+            "workflow_initiated": datetime.now(UTC).isoformat(),
         }
 
         self._validate_stream_settings()
@@ -346,6 +335,12 @@ class LogHandler(LogHandlerBase):
         """Start background loop that emits consumer heartbeat events."""
         if self.settings.consumer_heartbeat_interval <= 0:
             return
+        
+        if not self.workflow_metadata["workflow_id"]:
+            self.workflow_metadata["workflow_id"] = str(uuid.uuid4())
+            self._internal_logger.info(
+                f"[STOMP] Generated workflow ID: {self.workflow_metadata['workflow_id']}"
+            )
 
         self._consumer_heartbeat_thread = threading.Thread(
             target=self._consumer_heartbeat_loop,
@@ -359,8 +354,13 @@ class LogHandler(LogHandlerBase):
         )
 
     def _consumer_heartbeat_loop(self) -> None:
-        """Emit consumer heartbeat events at a configured interval."""
+        """Emit consumer heartbeat immediately, then at the configured interval."""
         interval = self.settings.consumer_heartbeat_interval
+
+        if self._consumer_heartbeat_stop_event.is_set():
+            return
+
+        self._emit_consumer_heartbeat()
 
         while not self._consumer_heartbeat_stop_event.wait(interval):
             self._emit_consumer_heartbeat()
@@ -369,38 +369,13 @@ class LogHandler(LogHandlerBase):
         """Emit one synthetic heartbeat event intended for downstream consumers."""
         try:
             event_data = self.formatter_instance.format(
-                _ConsumerHeartbeatRecord(), self.workflow_metadata
+                self.workflow_metadata, self.workflow_metadata
             )
         except Exception as e:
             self._internal_logger.error(
                 f"[STOMP] Formatter error for consumer heartbeat event: {e}"
             )
             return
-
-        # Ensure heartbeat semantics are explicit even with custom formatters.
-        if isinstance(event_data, dict):
-            event_data.setdefault("event_type", "consumer_heartbeat")
-            event_data.setdefault("heartbeat", True)
-            event_data.setdefault(
-                "workflow_id",
-                self.workflow_metadata.get("workflow_id"),
-            )
-            event_data.setdefault(
-                "workflow_start_timestamp",
-                self.workflow_metadata.get("workflow_start_timestamp"),
-            )
-            event_data.setdefault(
-                "heartbeat_interval_seconds",
-                self.settings.consumer_heartbeat_interval,
-            )
-            event_data.setdefault(
-                "working_directory",
-                self.workflow_metadata.get("working_directory"),
-            )
-            event_data.setdefault(
-                "user",
-                self.workflow_metadata.get("user"),
-            )
 
         self._send_to_broker(event_data)
 
@@ -518,9 +493,6 @@ class LogHandler(LogHandlerBase):
             and not self.workflow_metadata["workflow_id"]
         ):
             self.workflow_metadata["workflow_id"] = str(uuid.uuid4())
-            self.workflow_metadata["workflow_start_timestamp"] = datetime.now(
-                UTC
-            ).isoformat()
             self._internal_logger.info(
                 f"[STOMP] Generated workflow ID: {self.workflow_metadata['workflow_id']}"
             )
