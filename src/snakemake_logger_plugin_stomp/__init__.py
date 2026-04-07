@@ -369,7 +369,7 @@ class LogHandler(LogHandlerBase):
         """Emit one synthetic heartbeat event intended for downstream consumers."""
         try:
             event_data = self.formatter_instance.format(
-                self.workflow_metadata, self.workflow_metadata
+                None, self.workflow_metadata
             )
         except Exception as e:
             self._internal_logger.error(
